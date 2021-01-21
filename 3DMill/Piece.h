@@ -27,7 +27,7 @@ public:
 	float colliderRadius = 0.75f;
 
 	// whether the piece is blue or red
-	enum Color { NONE = -1, OUTLINE = 0, RED = 1, BLUE = 2 };
+	enum Color { EMPTY = -2, NONE = -1, OUTLINE = 0, RED = 1, BLUE = 2 };
 	Color type;
 
 	Piece() {
@@ -42,7 +42,10 @@ public:
 		// if the graphics is not enabled
 		if (graphics != nullptr) {
 			// make models based on color, set the position, and set the pointer to the model.
-			if (this->type == Color::NONE) {
+			if (this->type == Color::EMPTY) {
+				asset = new Asset(pos);
+			}
+			else if (this->type == Color::NONE) {
 				asset = new Asset(pos);
 			}
 			else if (this->type == Color::RED) {

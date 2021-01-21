@@ -64,7 +64,7 @@ public:
 	glm::vec3 mouseRay;
 
 	// -1 means not selecting anything
-	glm::vec3 selectedPiece;
+	glm::vec4 selectedPiece;
 
 	enum Stage { TESTING, SETUP, PLAY, DATA, END };
 	Stage stage;
@@ -89,7 +89,7 @@ public:
 		score1 = 0;
 		score2 = 0;
 
-		selectedPiece = glm::vec3(-1);
+		selectedPiece = glm::vec4(-1);
 
 		stage = Stage::DATA;
 	}
@@ -113,7 +113,7 @@ public:
 
 		mousePos = glm::vec2(0);
 
-		selectedPiece = glm::vec3(-1);
+		selectedPiece = glm::vec4(-1);
 
 		// construct the game setup
 		board = Board(graphics, pos);
@@ -256,21 +256,21 @@ public:
 
 			// if a piece is selected and it has a type NONE
 			// if ((currentTurn == placeOnlyOnTurn || placeOnlyOnTurn == 0) && selectedPiece != glm::vec3(-1) && board.data[(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type == Piece::Color::NONE) {
-			if (selectedPiece != glm::vec3(-1) && board.data[0][(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type == Piece::Color::NONE) {
+			if (selectedPiece != glm::vec4(-1) && board.data[(int)selectedPiece.w][(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type == Piece::Color::NONE) {
 				// set outline piece location and visibility
-				outlinePiece.asset->setPosition(board.getPiecePosFromCoord((int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, 0));
+				outlinePiece.asset->setPosition(board.getPiecePosFromCoord((int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w));
 				outlinePiece.asset->visible = true;
 
 				// check for right click or left click events to set piece (does not activate when win pause activates).
 				if (!winPause && leftClickStatus && (currentTurn == placeOnlyOnTurn || placeOnlyOnTurn == 0)) {
-					board.addPiece(currentTurn, (int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, 0);
+					board.addPiece(currentTurn, (int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w);
 					switchTurn();
 
 					// std::cout << "placed piece" << std::endl;
 					// callback
 					if (placePieceCallback != nullptr) {
 						// std::cout << "called callback" << std::endl;
-						placePieceCallback(board.data[0][(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type, selectedPiece);
+						placePieceCallback(board.data[(int)selectedPiece.w][(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type, selectedPiece);
 					}
 				}
 			}
@@ -429,17 +429,20 @@ public:
 	glm::vec4 checkSelectPiece() {
 		float closestLength = -1;
 		glm::vec4 closestPos = glm::vec4(-1);
-		for (int c = 0; c < 4; c++) {
-			for (int x = 0; x < 4; x++) {
-				for (int y = 0; y < 4; y++) {
-					for (int z = 0; z < 4; z++) {
-						// if the piece is not filled already and is being intersected by the line get the distance between the line and the piece
-						float length = checkLinePieceIntersection(board.data[x][y][z][c], mouseRay);
+		for (int c = 0; c < 3; c++) {
+			for (int x = 0; x < 3; x++) {
+				for (int y = 0; y < 3; y++) {
+					for (int z = 0; z < 3; z++) {
+						//if a valid position (not in center of cubes)
+						if (board.data[c][x][y][z].type != Piece::Color::EMPTY) {
+							// if the piece is not filled already and is being intersected by the line get the distance between the line and the piece
+							float length = checkLinePieceIntersection(board.data[c][x][y][z], mouseRay);
 
-						// if a piece is selected (not -1) then add it if it is either the closest or the first selected piece.
-						if (length != -1 && (closestLength == -1 || length < closestLength)) {
-							closestLength = length;
-							closestPos = glm::vec4(x, y, z, c);
+							// if a piece is selected (not -1) then add it if it is either the closest or the first selected piece.
+							if (length != -1 && (closestLength == -1 || length < closestLength)) {
+								closestLength = length;
+								closestPos = glm::vec4(x, y, z, c);
+							}
 						}
 					}
 				}
@@ -466,7 +469,7 @@ public:
 	void mouseUpdate(double x, double y) {
 		mousePos = glm::vec2(x, y);
 
-		//selectedPiece = checkSelectPiece();
+		selectedPiece = checkSelectPiece();
 	}
 
 	// find the vector ray where the mouse is looking

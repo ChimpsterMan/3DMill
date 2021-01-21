@@ -81,13 +81,13 @@ public:
 		return asset->position + (bottomLeft) + glm::vec3(x, y, z) * (glm::vec3(piecePosScalar) - layerScalar * float(c)) + layerScalar * float(c);
 	}
 
-	// finds the layer of the cube that a world position is.
+	// finds the layer of the cube that a given world position is.
 	int findLayer(glm::vec3 pos) {
 		// Work inside cube to outside cube
 		for (int c = 2; c >= 0; c--) {
 			glm::vec3 leftCorner = getPiecePosFromCoord(0, 0, 0, c);
 			glm::vec3 rightCorner = getPiecePosFromCoord(2, 2, 2, c);
-			if ((pos.x >= leftCorner.x && pos.y >= leftCorner.y && pos.z >= leftCorner.z) && (pos.x >= rightCorner.x && pos.y >= rightCorner.y && pos.z >= rightCorner.z)) {
+			if ((pos.x >= leftCorner.x && pos.y >= leftCorner.y && pos.z >= leftCorner.z) && (pos.x <= rightCorner.x && pos.y <= rightCorner.y && pos.z <= rightCorner.z)) {
 				return c;
 			}
 		}
@@ -106,7 +106,22 @@ public:
 						}
 						// since the origin of the board is at the bottom center, we just find the bottom left corner and work relatively.
 						glm::vec3 pos = getPiecePosFromCoord(x, y, z, c);
-						data[c][x][y][z] = Piece(graphics, Piece::Color::NONE, pos);
+
+						//account for holes in the center of the cubes which cannot have pieces placed in them
+						int centerCount = 0;
+						if (x == 1)
+							centerCount++;
+						if (y == 1)
+							centerCount++;
+						if (z == 1)
+							centerCount++;
+
+						if (centerCount >= 2) {
+							data[c][x][y][z] = Piece(graphics, Piece::Color::EMPTY, pos);
+						}
+						else {
+							data[c][x][y][z] = Piece(graphics, Piece::Color::NONE, pos);
+						}
 					}
 				}
 			}
