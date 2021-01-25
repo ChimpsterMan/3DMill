@@ -55,11 +55,11 @@ struct DataPacket
 	glm::vec3 selectedPiecePos;
 
 	// game data info
-	// 0 is None, 1 is red, blue is 2
+	// -1 is EMPTY, 0 is None, 1 is red, blue is 2
 	int score1 = 0;
 	int score2 = 0;
 	int currentTurn;
-	int board[4][4][4];
+	int board[3][3][3][3];
 };
 
 // static methods

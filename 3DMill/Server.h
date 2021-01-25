@@ -408,17 +408,22 @@ private:
 		DataPacket data;
 		data.type = DataPacket::MsgType::GAME_DATA;
 
-		for (int x = 0; x < 4; x++) {
-			for (int y = 0; y < 4; y++) {
-				for (int z = 0; z < 4; z++) {
-					if (game.board.data[x][y][z][0].type == Piece::Color::NONE) {
-						data.board[x][y][z] = 0;
-					}
-					if (game.board.data[x][y][z][0].type == Piece::Color::RED) {
-						data.board[x][y][z] = 1;
-					}
-					if (game.board.data[x][y][z][0].type == Piece::Color::BLUE) {
-						data.board[x][y][z] = 2;
+		for (int c = 0; c < 3; c++) {
+			for (int x = 0; x < 3; x++) {
+				for (int y = 0; y < 3; y++) {
+					for (int z = 0; z < 3; z++) {
+						if (game.board.data[c][x][y][z].type == Piece::Color::EMPTY) {
+							data.board[c][x][y][z] = -1;
+						}
+						if (game.board.data[c][x][y][z].type == Piece::Color::NONE) {
+							data.board[c][x][y][z] = 0;
+						}
+						if (game.board.data[c][x][y][z].type == Piece::Color::RED) {
+							data.board[c][x][y][z] = 1;
+						}
+						if (game.board.data[c][x][y][z].type == Piece::Color::BLUE) {
+							data.board[c][x][y][z] = 2;
+						}
 					}
 				}
 			}

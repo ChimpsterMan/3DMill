@@ -32,7 +32,7 @@ class GameManager {
 public:
 	// callbacks
 	void(*winCallback)(Piece::Color) = nullptr;
-	void(*placePieceCallback)(Piece::Color, glm::vec3) = nullptr;
+	void(*placePieceCallback)(Piece::Color, glm::vec4) = nullptr;
 	void(*clearBoardCallback)() = nullptr;
 	void(*outlinePieceMoveCallback) (bool, glm::vec3) = nullptr;
 
@@ -49,6 +49,10 @@ public:
 	int score1;
 	int score2;
 
+	// number of pieces left for each player
+	int piecesLeft1;
+	int piecesLeft2;
+
 	// flags
 	// the pause after somebody wins where everyone looks at the board
 	bool winPause;
@@ -60,7 +64,15 @@ public:
 
 	float camFollowDistance;
 
+	// Per-Turn Status Vars
 	Piece::Color currentTurn;
+
+	// If the player needs to select two positions, the first selection is shoved into here
+	glm::vec4 selectedPieceBuffer;
+
+	// The number of mills achieved by a person on their turn (how many pieces of their opponent they get to remove)
+	int mills;
+
 	glm::vec3 mouseRay;
 
 	// -1 means not selecting anything
@@ -89,7 +101,12 @@ public:
 		score1 = 0;
 		score2 = 0;
 
+		piecesLeft1 = 10;
+		piecesLeft2 = 10;
+
 		selectedPiece = glm::vec4(-1);
+		selectedPieceBuffer = glm::vec4(-1);
+		mills = 0;
 
 		stage = Stage::DATA;
 	}
@@ -106,6 +123,9 @@ public:
 		score1 = 0;
 		score2 = 0;
 
+		piecesLeft1 = 10;
+		piecesLeft2 = 10;
+
 		winPause = false;
 
 		rightClickStatus = false;
@@ -114,6 +134,8 @@ public:
 		mousePos = glm::vec2(0);
 
 		selectedPiece = glm::vec4(-1);
+		selectedPieceBuffer = glm::vec4(-1);
+		mills = 0;
 
 		// construct the game setup
 		board = Board(graphics, pos);
@@ -191,6 +213,7 @@ public:
 					outlinePiece.asset->visible = false;
 				}
 
+				// Manage outline piece
 				// change the strength of gradient on the outline piece if the win pause is active
 				if (winPause) {
 					outlinePiece.asset->gradient.colorStrength = 1.0f;
@@ -253,24 +276,72 @@ public:
 			glm::vec3 tempVec3 = outlinePiece.asset->position;
 
 			// SELECT PIECES
+			// DO this when you get back
+			// Make sure you can unselect pieces
+			// ensure that when somebody needs to place mills, no other pieces need to be selected
+			// If a piece slot on the board is selected
+			if (selectedPiece != glm::vec4(-1)) {
+				// if multiplayer is not enabled or if the multiplayer assigned turn is equal to the current turn
+				if (placeOnlyOnTurn == 0 || placeOnlyOnTurn == currentTurn) {
+					// if the selected slot is your color
+					if (board.getPiece(selectedPiece).type == currentTurn) {
+						// choose piece to move
+						if (selectedPieceBuffer == glm::vec4(-1)) {
+							// set effect
+							board.getPiece(selectedPiece).asset->gradient.enabled = true;
 
-			// if a piece is selected and it has a type NONE
-			// if ((currentTurn == placeOnlyOnTurn || placeOnlyOnTurn == 0) && selectedPiece != glm::vec3(-1) && board.data[(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type == Piece::Color::NONE) {
-			if (selectedPiece != glm::vec4(-1) && board.data[(int)selectedPiece.w][(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type == Piece::Color::NONE) {
-				// set outline piece location and visibility
-				outlinePiece.asset->setPosition(board.getPiecePosFromCoord((int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w));
-				outlinePiece.asset->visible = true;
+							// check click
+							if (!winPause && leftClickStatus) {
+								selectedPieceBuffer = selectedPiece;
+							}
+						}
+					}
 
-				// check for right click or left click events to set piece (does not activate when win pause activates).
-				if (!winPause && leftClickStatus && (currentTurn == placeOnlyOnTurn || placeOnlyOnTurn == 0)) {
-					board.addPiece(currentTurn, (int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w);
-					switchTurn();
+					// if the selected slot is your opponents color (if red make it blue, if blue make it red)
+					if (board.getPiece(selectedPiece).type == currentTurn % 2 + 1) {
+						if (mills > 0) {
+							// check click
+							if (!winPause && leftClickStatus) {
+								board.removePiece(selectedPiece);
 
-					// std::cout << "placed piece" << std::endl;
-					// callback
-					if (placePieceCallback != nullptr) {
-						// std::cout << "called callback" << std::endl;
-						placePieceCallback(board.data[(int)selectedPiece.w][(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type, selectedPiece);
+								mills--;
+							}
+						}
+					}
+				}
+
+				// if an unfilled slot and the player does not currently have to set mills (priorety)
+				if (board.getPiece(selectedPiece).type == Piece::Color::NONE && mills == 0) {
+					// set outline piece location and visibility
+					outlinePiece.asset->setPosition(board.getPiecePosFromCoord((int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w));
+					outlinePiece.asset->visible = true;
+
+					// check for right click or left click events to set piece (does not activate when win pause activates).
+					if (!winPause && leftClickStatus && (currentTurn == placeOnlyOnTurn || placeOnlyOnTurn == 0)) {
+						board.addPiece(currentTurn, (int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w);
+
+						// if the person is trying to move a piece
+						if (selectedPieceBuffer != glm::vec4(-1)) {
+							// deactivate effect
+							board.getPiece(selectedPieceBuffer).asset->gradient.enabled = false;
+
+							// remove old piece
+							board.removePiece(selectedPieceBuffer);
+						}
+
+						// test for mills and apply them
+						mills = checkMill(selectedPiece);
+
+						if (mills == 0) {
+							switchTurn();
+
+							// std::cout << "placed piece" << std::endl;
+							// callback
+							if (placePieceCallback != nullptr) {
+								// std::cout << "called callback" << std::endl;
+								placePieceCallback(board.data[(int)selectedPiece.w][(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type, selectedPiece);
+							}
+						}
 					}
 				}
 			}
@@ -381,8 +452,166 @@ public:
 
 	// check if somebody won
 	Piece::Color checkWin() {
+		// Check if Blue Wins
+		if (piecesLeft1 == 0) {
+			//traverse the entire board searching for a red piece
+			bool found = false;
+			for (int c = 0; c < 3; c++) {
+				for (int x = 0; x < 3; x++) {
+					for (int y = 0; y < 3; y++) {
+						for (int z = 0; z < 3; z++) {
+							//if a valid position (not in center of cubes)
+							if (board.data[c][x][y][z].type == Piece::Color::RED) {
+								found = true;
+								break;
+							}
+							if (found) { break; }
+						}
+						if (found) { break; }
+					}
+					if (found) { break; }
+				}
+				if (found) { break; }
+			}
 
+			if (found == false) {
+				return Piece::Color::BLUE;
+			}
+		}
+
+		// Check if Red Wins
+		if (piecesLeft2 == 0) {
+			//traverse the entire board searching for a blue piece
+			bool found = false;
+			for (int c = 0; c < 3; c++) {
+				for (int x = 0; x < 3; x++) {
+					for (int y = 0; y < 3; y++) {
+						for (int z = 0; z < 3; z++) {
+							//if a valid position (not in center of cubes)
+							if (board.data[c][x][y][z].type == Piece::Color::RED) {
+								found = true;
+								break;
+							}
+							if (found) { break; }
+						}
+						if (found) { break; }
+					}
+					if (found) { break; }
+				}
+				if (found) { break; }
+			}
+
+			if (found == false) {
+				return Piece::Color::RED;
+			}
+		}
+
+		// default
 		return Piece::Color::NONE;
+	}
+
+	// Return the number of mills a piece is connected to. Enter a piece pos (x,y,z,c) and the function will return if the piece selected is part of a mill (3 pieces of the same color in a row)
+	int checkMill(glm::vec4 pos) {
+		int millsCounted = 0;
+
+		if (board.getPiece(pos).type != Piece::Color::NONE | Piece::Color::EMPTY) {
+			// check each cube layer for horizontal or vertical mills
+			for (int c = 0; c < 3; c++) {
+				// check x lines
+				for (int y = 0; y < 3; y += 2) {
+					for (int z = 0; z < 3; z += 2) {
+						// goal of getting this to equal 3
+						int count = 0;
+
+						for (int x = 0; x < 3; x++) {
+							//if the piece pos inputed has the same type as the current searching index
+							if (board.getPiece(pos).type == board.data[c][x][y][z].type) {
+								count++;
+							}
+						}
+
+						if (count >= 3) {
+							millsCounted++;
+						}
+					}
+				}
+
+				// check y lines
+				for (int x = 0; x < 3; x += 2) {
+					for (int z = 0; z < 3; z += 2) {
+						// goal of getting this to equal 3
+						int count = 0;
+
+						for (int y = 0; y < 3; y++) {
+							//if the piece pos inputed has the same type as the current searching index
+							if (board.getPiece(pos).type == board.data[c][x][y][z].type) {
+								count++;
+							}
+						}
+
+						if (count >= 3) {
+							millsCounted++;
+						}
+					}
+				}
+
+				// check z lines
+				for (int x = 0; x < 3; x += 2) {
+					for (int y = 0; y < 3; y += 2) {
+						// goal of getting this to equal 3
+						int count = 0;
+
+						for (int z = 0; z < 3; z++) {
+							//if the piece pos inputed has the same type as the current searching index
+							if (board.getPiece(pos).type == board.data[c][x][y][z].type) {
+								count++;
+							}
+						}
+
+						if (count >= 3) {
+							millsCounted++;
+						}
+					}
+				}
+			}
+
+			// check for diagonal mills
+			// Two Rules must be followed to make sure that only center edge pieces are found
+			// 1. There can be no more than one 1 in xyz
+			// 2. There must be one 1 in xyz
+			for (int x = 0; x < 3; x++) {
+				for (int y = 0; y < 3; y++) {
+					for (int z = 0; z < 3; z++) {
+						int oneCount = 0;
+						if (x == 1)
+							oneCount++;
+						if (y == 1)
+							oneCount++;
+						if (z == 1)
+							oneCount++;
+
+						if (oneCount == 1) {
+							// yay, everything in here is a center edge position
+
+							int count = 0;
+
+							for (int c = 0; c < 3; c++) {
+								//if the piece pos inputed has the same type as the current searching index
+								if (board.getPiece(pos).type == board.data[c][x][y][z].type) {
+									count++;
+								}
+							}
+
+							if (count >= 3) {
+								millsCounted++;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return millsCounted;
 	}
 
 	void switchTurn() {
@@ -392,6 +621,10 @@ public:
 		else if (currentTurn == Piece::Color::RED) {
 			currentTurn = Piece::Color::BLUE;
 		}
+
+		// reset turn vars
+		selectedPieceBuffer = glm::vec4(-1);
+		mills = 0;
 	}
 
 	void setTurnToInt(int num) {
@@ -401,6 +634,10 @@ public:
 		else if (num == Piece::Color::BLUE) {
 			currentTurn = Piece::Color::BLUE;
 		}
+
+		// reset turn vars
+		selectedPieceBuffer = glm::vec4(-1);
+		mills = 0;
 	}
 
 	void setScores(int score1, int score2) {
@@ -509,7 +746,7 @@ public:
 		winCallback = f;
 	}
 
-	void setPiecePlaceCallback(void f (Piece::Color, glm::vec3)) {
+	void setPiecePlaceCallback(void f (Piece::Color, glm::vec4)) {
 		placePieceCallback = f;
 	}
 

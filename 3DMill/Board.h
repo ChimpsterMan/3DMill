@@ -96,6 +96,15 @@ public:
 		return -1;
 	}
 
+	// remove a piece from the board properly and replace it with a none slot.
+	void removePiece(glm::vec4 pos) {
+		if (graphics != nullptr) {
+			graphics->removeAsset(getPiece(pos).asset);
+		}
+
+		getPiece(pos) = Piece(graphics, Piece::Color::NONE, getPiecePosFromCoord(pos.x, pos.y, pos.z, pos.w));
+	}
+
 	void clearBoard() {
 		for (int c = 0; c < 3; c++) {
 			for (int x = 0; x < 3; x++) {
@@ -134,7 +143,7 @@ public:
 			for (int x = 0; x < 3; x++) {
 				for (int y = 0; y < 3; y++) {
 					for (int z = 0; z < 3; z++) {
-						if (data[c][x][y][z].type != Piece::Color::NONE) {
+						if (data[c][x][y][z].type != Piece::Color::NONE | Piece::Color::EMPTY) {
 							pieces += 1;
 						}
 					}
@@ -160,6 +169,11 @@ public:
 		return glm::vec3(0);
 	}
 
+	// get piece from glm::vec4 (x,y,z,c)
+	Piece &getPiece(glm::vec4 pos) {
+		return data[(int)pos.w][(int)pos.x][(int)pos.y][(int)pos.z];
+	}
+
 	// sets all the board positons and current to whatever the datapacked says
 	void setBoardToData(DataPacket *datapacket) {
 		// std::cout << "set board to data" << std::endl;
@@ -168,14 +182,16 @@ public:
 			for (int x = 0; x < 3; x++) {
 				for (int y = 0; y < 3; y++) {
 					for (int z = 0; z < 3; z++) {
-						if (datapacket->board[x][y][z] == 0) {
-							addPiece(Piece::Color::NONE, c, x, y, z);
+						if (datapacket->board[c][x][y][z] == 0) {
+							addPiece(Piece::Color::NONE, x, y, z, c);
 						}
-						if (datapacket->board[x][y][z] == 1) {
-							addPiece(Piece::Color::RED, c, x, y, z);
+						if (datapacket->board[c][x][y][z] == 1) {
+							addPiece(Piece::Color::RED, x, y, z, c);
+							//std::cout << c << " " << x << " " << y << " " << z << std::endl;
 						}
-						if (datapacket->board[x][y][z] == 2) {
-							addPiece(Piece::Color::BLUE, c, x, y, z);
+						if (datapacket->board[c][x][y][z] == 2) {
+							addPiece(Piece::Color::BLUE, x, y, z, c);
+							//std::cout << c << " " << x << " " << y << " " << z << std::endl;
 						}
 					}
 				}

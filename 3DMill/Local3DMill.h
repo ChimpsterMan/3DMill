@@ -151,8 +151,8 @@ public:
 		// graphics.textManager.addText("This is sample text", "test", 15.0f, 15.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
 
 		// add test piece
-		gameManager.board.addPiece(Piece::Color::BLUE, 0, 1, 0, 2);
-		 gameManager.board.addPiece(Piece::Color::RED, 1, 2, 2, 2);
+		//gameManager.board.addPiece(Piece::Color::BLUE, 0, 1, 0, 2);
+		//gameManager.board.addPiece(Piece::Color::RED, 1, 2, 2, 2);
 
 		enableFPSCounter = true;
 
