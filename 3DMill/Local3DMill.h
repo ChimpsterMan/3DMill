@@ -147,6 +147,9 @@ public:
 		glfwSetCursorPosCallback(graphics.window, mouse_callback_custom);
 		glfwSetMouseButtonCallback(graphics.window, mouse_button_callback_custom);
 
+		// make mouse button input sticky
+		//glfwSetInputMode(graphics.window, GLFW_STICKY_MOUSE_BUTTONS, GLFW_TRUE);
+
 		// add text
 		// graphics.textManager.addText("This is sample text", "test", 15.0f, 15.0f, 1.0f, glm::vec3(0.5, 0.8f, 0.2f));
 
@@ -214,11 +217,11 @@ public:
 // clicking
 void mouse_button_callback_custom(GLFWwindow* window, int button, int action, int mods)
 {
-	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
 		(*gM).leftClick();
 	}
 
-	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
+	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) {
 		(*gM).rightClick();
 	}
 }

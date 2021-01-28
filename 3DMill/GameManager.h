@@ -147,8 +147,13 @@ public:
 		// play setup
 		if (stage == Stage::PLAY) {
 			// setup text
-			this->graphics->addText("Player 1: 0", "score1", 1, 95, 1.0f, glm::vec3(0.75,0.1,0.1));
-			this->graphics->addText("Player 2: 0", "score2", 1, 90, 1.0f, glm::vec3(0.1,0.1,0.75));
+			// score
+			this->graphics->addText("Player 1: " + to_string(score1), "score1", 1, 95, 1.0f, glm::vec3(0.75,0.1,0.1));
+			this->graphics->addText("Player 2: " + to_string(score2), "score2", 1, 90, 1.0f, glm::vec3(0.1,0.1,0.75));
+
+			// pieces left
+			this->graphics->addText("Pieces Left: " + to_string(piecesLeft1), "piecesLeft1", 20, 95, 1.0f, glm::vec3(0.75, 0.1, 0.1));
+			this->graphics->addText("Pieces Left: " + to_string(piecesLeft2), "piecesLeft2", 20, 90, 1.0f, glm::vec3(0.1, 0.1, 0.75));
 		}
 
 		// testing setup
@@ -277,28 +282,34 @@ public:
 
 			// SELECT PIECES
 			// DO this when you get back
-			// Make sure you can unselect pieces
-			// ensure that when somebody needs to place mills, no other pieces need to be selected
+			// fix mill selection
+			// fix movement traversal check
+			// fix piecesLeft Limiters
 			// If a piece slot on the board is selected
 			if (selectedPiece != glm::vec4(-1)) {
 				// if multiplayer is not enabled or if the multiplayer assigned turn is equal to the current turn
 				if (placeOnlyOnTurn == 0 || placeOnlyOnTurn == currentTurn) {
-					// if the selected slot is your color
-					if (board.getPiece(selectedPiece).type == currentTurn) {
+					// unselect selected pieces
+					if (selectedPiece == selectedPieceBuffer && selectedPiece != glm::vec4(-1) && leftClickStatus && !winPause) {
+						board.getPiece(selectedPiece).asset->disableGradientEffect();
+						selectedPieceBuffer = glm::vec4(-1);
+					}
+
+					// if the selected slot is your color (ignore if unselecting)
+					else if (board.getPiece(selectedPiece).type == currentTurn) {
 						// choose piece to move
 						if (selectedPieceBuffer == glm::vec4(-1)) {
-							// set effect
-							board.getPiece(selectedPiece).asset->gradient.enabled = true;
-
 							// check click
 							if (!winPause && leftClickStatus) {
+								board.getPiece(selectedPiece).asset->enableGradientEffect();
+
 								selectedPieceBuffer = selectedPiece;
 							}
 						}
 					}
 
 					// if the selected slot is your opponents color (if red make it blue, if blue make it red)
-					if (board.getPiece(selectedPiece).type == currentTurn % 2 + 1) {
+					else if (board.getPiece(selectedPiece).type == currentTurn % 2 + 1) {
 						if (mills > 0) {
 							// check click
 							if (!winPause && leftClickStatus) {
@@ -313,33 +324,72 @@ public:
 				// if an unfilled slot and the player does not currently have to set mills (priorety)
 				if (board.getPiece(selectedPiece).type == Piece::Color::NONE && mills == 0) {
 					// set outline piece location and visibility
-					outlinePiece.asset->setPosition(board.getPiecePosFromCoord((int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w));
-					outlinePiece.asset->visible = true;
+					// you can only see outline if it is a possible place to move
+
+					// if the person is trying to move a piece and it is in an invalid place then don't outline
+					if (!(!winPause && (currentTurn == placeOnlyOnTurn || placeOnlyOnTurn == 0) && selectedPieceBuffer != glm::vec4(-1) && !validMoveLocation(selectedPieceBuffer, selectedPiece))) {
+						outlinePiece.asset->setPosition(board.getPiecePosFromCoord((int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w));
+						outlinePiece.asset->visible = true;
+					}
 
 					// check for right click or left click events to set piece (does not activate when win pause activates).
 					if (!winPause && leftClickStatus && (currentTurn == placeOnlyOnTurn || placeOnlyOnTurn == 0)) {
-						board.addPiece(currentTurn, (int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w);
+						bool placedPiece = false;
 
 						// if the person is trying to move a piece
 						if (selectedPieceBuffer != glm::vec4(-1)) {
-							// deactivate effect
-							board.getPiece(selectedPieceBuffer).asset->gradient.enabled = false;
+							// check if the end location is in a valid move position
+							if (validMoveLocation(selectedPieceBuffer, selectedPiece)) {
+								board.addPiece(currentTurn, (int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w);
+								placedPiece = true;
 
-							// remove old piece
-							board.removePiece(selectedPieceBuffer);
+								// deactivate effect
+								board.getPiece(selectedPieceBuffer).asset->gradient.enabled = false;
+
+								// remove old piece
+								board.removePiece(selectedPieceBuffer);
+
+								//selectedPieceBuffer = glm::vec4(-1);
+							}
+						}
+						else {
+							//get pieces left
+							int* piecesLeft = nullptr;
+							piecesLeft = getPiecesLeftFromTurn(currentTurn);
+
+							if (piecesLeft > 0) {
+								board.addPiece(currentTurn, (int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w);
+								placedPiece = true;
+							}
 						}
 
-						// test for mills and apply them
-						mills = checkMill(selectedPiece);
+						if (placedPiece) {
+							// update text for pieces left
+							// if not moving a piece (placing new piece)
+							if (selectedPieceBuffer == glm::vec4(-1)) {
+								int *var = nullptr;
+								var = getPiecesLeftFromTurn(currentTurn);
 
-						if (mills == 0) {
-							switchTurn();
+								*var -= 1;
 
-							// std::cout << "placed piece" << std::endl;
-							// callback
-							if (placePieceCallback != nullptr) {
-								// std::cout << "called callback" << std::endl;
-								placePieceCallback(board.data[(int)selectedPiece.w][(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type, selectedPiece);
+								std::cout << "piecesLeft" + to_string(currentTurn) << std::endl;
+								graphics->setText("piecesLeft" + to_string(currentTurn), "Pieces Left: " + to_string(*var));
+							}
+
+							// test for mills and apply them
+							if (board.getPiece(selectedPiece).type != Piece::Color::NONE) {
+								mills = checkMill(selectedPiece);
+							}
+
+							if (mills == 0) {
+								switchTurn();
+
+								// std::cout << "placed piece" << std::endl;
+								// callback
+								if (placePieceCallback != nullptr) {
+									// std::cout << "called callback" << std::endl;
+									placePieceCallback(board.data[(int)selectedPiece.w][(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type, selectedPiece);
+								}
 							}
 						}
 					}
@@ -448,6 +498,47 @@ public:
 
 		// update physics
 		(*camera).updatePhysics();
+	}
+
+	bool validMoveLocation(glm::vec4 initial, glm::vec4 finalLocation) {
+		std::vector<glm::vec4> valid = std::vector<glm::vec4>();
+
+		// move along the cube
+		for (int x = -1; x < 2; x++) {
+			for (int y = -1; y < 2; y++) {
+				for (int z = -1; z < 2; z++) {
+					if (initial.x + x >= 0 && initial.x + x <= 2 && initial.y + y >= 0 && initial.y + y <= 2 && initial.z + z >= 0 && initial.z + z <= 2) {
+						int oneCount = 0;
+						if (initial.x + x == 1)
+							oneCount++;
+						if (initial.y + y == 1)
+							oneCount++;
+						if (initial.z + z == 1)
+							oneCount++;
+
+						// if not part of the centers (edge or corner) and if it is not the original position
+						if (oneCount <= 1 && glm::vec4(initial.x + x, initial.y + y, initial.z + z, initial.w) != initial) {
+							valid.push_back(glm::vec4(initial.x + x, initial.y + y, initial.z + z, initial.w));
+						}
+					}
+				}
+			}
+		}
+
+		// handle across multiple cube levels
+		for (int w = -1; w <= 1; w += 2) {
+			if (initial.w + w >= 0 && initial.w + w <= 2) {
+				valid.push_back(glm::vec4(initial.x, initial.y, initial.z, w));
+			}
+		}
+
+		for (int i = 0; i < valid.size(); i++) {
+			if (valid[i] == finalLocation) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	// check if somebody won
@@ -643,6 +734,17 @@ public:
 	void setScores(int score1, int score2) {
 		this->score1 = score1;
 		this->score2 = score2;
+	}
+
+	int* getPiecesLeftFromTurn(Piece::Color color) {
+		switch (color) {
+		case 1:
+			return &piecesLeft1;
+			break;
+		case 2:
+			return &piecesLeft2;
+			break;
+		}
 	}
 
 	void leftClick() {
