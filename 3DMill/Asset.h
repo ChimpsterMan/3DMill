@@ -45,7 +45,7 @@ public:
 		glm::vec3 color;
 		float colorStrength = 0.5f;
 
-		// speed in animation
+		// speed in animation (min 0, max 500)
 		int speed = 20;
 
 		// progress in animation of effect
@@ -163,8 +163,9 @@ public:
 		gradient.frame += gradient.speed;
 
 		if (gradient.frame > 1000 || gradient.frame < 0) {
+			if (gradient.frame > 1000) { gradient.frame = 1000; }
+			if (gradient.frame < 0) { gradient.frame = 0; }
 			gradient.speed *= -1;
-			gradient.frame += gradient.speed;
 		}
 
 		// width of 100 rgb values

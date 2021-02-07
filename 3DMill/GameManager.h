@@ -261,6 +261,15 @@ public:
 					outlinePiece.asset->gradient.colorStrength = 0.5f;
 					outlinePiece.asset->overrideColorEnabled = false;
 				}
+
+				// set gradient for preview piece if it is your turn
+				if (currentTurn == placeOnlyOnTurn) {
+					previewPiece.asset->enableGradientEffect();
+
+				}
+				else {
+					previewPiece.asset->disableGradientEffect();
+				}
 			}
 
 			// check key input
