@@ -152,8 +152,8 @@ public:
 			this->graphics->addText("Player 2: " + to_string(score2), "score2", 1, 90, 1.0f, glm::vec3(0.1,0.1,0.75));
 
 			// pieces left
-			this->graphics->addText("Pieces Left: " + to_string(piecesLeft1), "piecesLeft1", 20, 95, 1.0f, glm::vec3(0.75, 0.1, 0.1));
-			this->graphics->addText("Pieces Left: " + to_string(piecesLeft2), "piecesLeft2", 20, 90, 1.0f, glm::vec3(0.1, 0.1, 0.75));
+			this->graphics->addText("Reserve Pieces: " + to_string(piecesLeft1), "piecesLeft1", 20, 95, 1.0f, glm::vec3(0.75, 0.1, 0.1));
+			this->graphics->addText("Reserve Pieces: " + to_string(piecesLeft2), "piecesLeft2", 20, 90, 1.0f, glm::vec3(0.1, 0.1, 0.75));
 		}
 
 		// testing setup
@@ -283,12 +283,13 @@ public:
 			// SELECT PIECES
 			// DO this when you get back
 			// fix mill selection
-			// fix movement traversal check
-			// fix piecesLeft Limiters
 			// If a piece slot on the board is selected
 			if (selectedPiece != glm::vec4(-1)) {
+				// var to stop processing future actions of the current loop
+				bool restrictAction = false;
+
 				// if multiplayer is not enabled or if the multiplayer assigned turn is equal to the current turn
-				if (placeOnlyOnTurn == 0 || placeOnlyOnTurn == currentTurn) {
+				if (!restrictAction && (placeOnlyOnTurn == 0 || placeOnlyOnTurn == currentTurn)) {
 					// unselect selected pieces
 					if (selectedPiece == selectedPieceBuffer && selectedPiece != glm::vec4(-1) && leftClickStatus && !winPause) {
 						board.getPiece(selectedPiece).asset->disableGradientEffect();
@@ -309,20 +310,35 @@ public:
 					}
 
 					// if the selected slot is your opponents color (if red make it blue, if blue make it red)
-					else if (board.getPiece(selectedPiece).type == currentTurn % 2 + 1) {
-						if (mills > 0) {
-							// check click
-							if (!winPause && leftClickStatus) {
-								board.removePiece(selectedPiece);
+					// and if there are mills left and the opponents piece is not already part of a mill
+					else if (board.getPiece(selectedPiece).type == currentTurn % 2 + 1 && mills > 0 && checkMill(selectedPiece) == 0) {
+						// check click
+						if (!winPause && leftClickStatus) {
+							board.removePiece(selectedPiece);
 
-								mills--;
+							mills--;
+							restrictAction = true;
+
+							if (mills == 0) {
+								switchTurn();
+							}
+							// if there are simply no more pieces to remove that are not in mills
+							else if (getNonMillPieces(Piece::Color(currentTurn % 2 + 1)) == 0) {
+								mills = 0;
+								switchTurn();
+							}
+
+							// update remove across clients
+							if (placePieceCallback != nullptr) {
+								// std::cout << "called callback" << std::endl;
+								placePieceCallback(board.data[(int)selectedPiece.w][(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type, selectedPiece);
 							}
 						}
 					}
 				}
 
 				// if an unfilled slot and the player does not currently have to set mills (priorety)
-				if (board.getPiece(selectedPiece).type == Piece::Color::NONE && mills == 0) {
+				if (!restrictAction && board.getPiece(selectedPiece).type == Piece::Color::NONE && mills == 0) {
 					// set outline piece location and visibility
 					// you can only see outline if it is a possible place to move
 
@@ -339,7 +355,8 @@ public:
 						// if the person is trying to move a piece
 						if (selectedPieceBuffer != glm::vec4(-1)) {
 							// check if the end location is in a valid move position
-							if (validMoveLocation(selectedPieceBuffer, selectedPiece)) {
+							// override this valid move location if the player only has 3 pieces left on the field and their reserves.
+							if (validMoveLocation(selectedPieceBuffer, selectedPiece) || getPiecesOnBoard(board.getPiece(selectedPiece).type) + *getPiecesLeftFromTurn(currentTurn) <= 3) {
 								board.addPiece(currentTurn, (int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w);
 								placedPiece = true;
 
@@ -352,14 +369,18 @@ public:
 								//selectedPieceBuffer = glm::vec4(-1);
 							}
 						}
+						// normal placing piece
 						else {
-							//get pieces left
+							// get pieces left in pocket
 							int* piecesLeft = nullptr;
 							piecesLeft = getPiecesLeftFromTurn(currentTurn);
 
-							if (piecesLeft > 0) {
+							if (*piecesLeft > 0) {
 								board.addPiece(currentTurn, (int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w);
 								placedPiece = true;
+							}
+							else {
+								std::cout << "Alert: You are out of reserve pieces and can no longer put any on the board. You may only move existing pieces." << std::endl;
 							}
 						}
 
@@ -372,8 +393,8 @@ public:
 
 								*var -= 1;
 
-								std::cout << "piecesLeft" + to_string(currentTurn) << std::endl;
-								graphics->setText("piecesLeft" + to_string(currentTurn), "Pieces Left: " + to_string(*var));
+								// std::cout << "piecesLeft" + to_string(currentTurn) << std::endl;
+								graphics->setText("piecesLeft" + to_string(currentTurn), "Reserve Pieces: " + to_string(*var));
 							}
 
 							// test for mills and apply them
@@ -381,15 +402,23 @@ public:
 								mills = checkMill(selectedPiece);
 							}
 
+							// switch the turn if the current player does not have mills to use.
 							if (mills == 0) {
 								switchTurn();
+							}
 
-								// std::cout << "placed piece" << std::endl;
-								// callback
-								if (placePieceCallback != nullptr) {
-									// std::cout << "called callback" << std::endl;
-									placePieceCallback(board.data[(int)selectedPiece.w][(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type, selectedPiece);
-								}
+							// if there are simply no more pieces to remove that are not in mills
+							else if (getNonMillPieces(Piece::Color(currentTurn % 2 + 1)) == 0) {
+								std::cout << "here" << std::endl;
+								mills = 0;
+								switchTurn();
+							}
+
+							// std::cout << "placed piece" << std::endl;
+							// callback
+							if (placePieceCallback != nullptr) {
+								// std::cout << "called callback" << std::endl;
+								placePieceCallback(board.data[(int)selectedPiece.w][(int)selectedPiece.x][(int)selectedPiece.y][(int)selectedPiece.z].type, selectedPiece);
 							}
 						}
 					}
@@ -517,8 +546,20 @@ public:
 							oneCount++;
 
 						// if not part of the centers (edge or corner) and if it is not the original position
-						if (oneCount <= 1 && glm::vec4(initial.x + x, initial.y + y, initial.z + z, initial.w) != initial) {
-							valid.push_back(glm::vec4(initial.x + x, initial.y + y, initial.z + z, initial.w));
+						glm::vec4 temp = glm::vec4(initial.x + x, initial.y + y, initial.z + z, initial.w);
+						if (oneCount <= 1 && temp != initial) {
+							// they need to share atleast two axis
+							int twoCount = 0;
+							if (temp.x == initial.x)
+								twoCount++;
+							if (temp.y == initial.y)
+								twoCount++;
+							if (temp.z == initial.z)
+								twoCount++;
+
+							if (twoCount == 2) {
+								valid.push_back(temp);
+							}
 						}
 					}
 				}
@@ -527,8 +568,9 @@ public:
 
 		// handle across multiple cube levels
 		for (int w = -1; w <= 1; w += 2) {
-			if (initial.w + w >= 0 && initial.w + w <= 2) {
-				valid.push_back(glm::vec4(initial.x, initial.y, initial.z, w));
+			// and not travelling across corners
+			if (initial.w + w >= 0 && initial.w + w <= 2 && (initial.x == 1 || initial.y == 1 || initial.z == 1)) {
+				valid.push_back(glm::vec4(initial.x, initial.y, initial.z, initial.w + w));
 			}
 		}
 
@@ -545,60 +587,47 @@ public:
 	Piece::Color checkWin() {
 		// Check if Blue Wins
 		if (piecesLeft1 == 0) {
-			//traverse the entire board searching for a red piece
-			bool found = false;
-			for (int c = 0; c < 3; c++) {
-				for (int x = 0; x < 3; x++) {
-					for (int y = 0; y < 3; y++) {
-						for (int z = 0; z < 3; z++) {
-							//if a valid position (not in center of cubes)
-							if (board.data[c][x][y][z].type == Piece::Color::RED) {
-								found = true;
-								break;
-							}
-							if (found) { break; }
-						}
-						if (found) { break; }
-					}
-					if (found) { break; }
-				}
-				if (found) { break; }
-			}
+			// traverse the entire board searching for a red piece
+			int num = getPiecesOnBoard(Piece::Color::RED);
 
-			if (found == false) {
+			if (num <= 0) {
 				return Piece::Color::BLUE;
 			}
 		}
 
 		// Check if Red Wins
 		if (piecesLeft2 == 0) {
-			//traverse the entire board searching for a blue piece
-			bool found = false;
-			for (int c = 0; c < 3; c++) {
-				for (int x = 0; x < 3; x++) {
-					for (int y = 0; y < 3; y++) {
-						for (int z = 0; z < 3; z++) {
-							//if a valid position (not in center of cubes)
-							if (board.data[c][x][y][z].type == Piece::Color::RED) {
-								found = true;
-								break;
-							}
-							if (found) { break; }
-						}
-						if (found) { break; }
-					}
-					if (found) { break; }
-				}
-				if (found) { break; }
-			}
+			// traverse the entire board searching for a blue piece
+			int num = getPiecesOnBoard(Piece::Color::BLUE);
 
-			if (found == false) {
+			if (num <= 0) {
 				return Piece::Color::RED;
 			}
 		}
 
 		// default
 		return Piece::Color::NONE;
+	}
+
+	// get the current number of pieces with a certain color on the board
+	int getPiecesOnBoard(Piece::Color color) {
+		//traverse the entire board searching for a red piece
+		int count = 0;
+
+		for (int c = 0; c < 3; c++) {
+			for (int x = 0; x < 3; x++) {
+				for (int y = 0; y < 3; y++) {
+					for (int z = 0; z < 3; z++) {
+						//if a valid position (not in center of cubes)
+						if (board.data[c][x][y][z].type == color) {
+							count++;
+						}
+					}
+				}
+			}
+		}
+
+		return count;
 	}
 
 	// Return the number of mills a piece is connected to. Enter a piece pos (x,y,z,c) and the function will return if the piece selected is part of a mill (3 pieces of the same color in a row)
@@ -613,15 +642,21 @@ public:
 					for (int z = 0; z < 3; z += 2) {
 						// goal of getting this to equal 3
 						int count = 0;
+						bool partOfMill = false;
 
 						for (int x = 0; x < 3; x++) {
-							//if the piece pos inputed has the same type as the current searching index
+							// if the piece pos inputed has the same type as the current searching index
 							if (board.getPiece(pos).type == board.data[c][x][y][z].type) {
 								count++;
 							}
+
+							// and is a part of the mill
+							if (pos == glm::vec4(x, y, z, c)) {
+								partOfMill = true;
+							}
 						}
 
-						if (count >= 3) {
+						if (count >= 3 && partOfMill) {
 							millsCounted++;
 						}
 					}
@@ -632,15 +667,21 @@ public:
 					for (int z = 0; z < 3; z += 2) {
 						// goal of getting this to equal 3
 						int count = 0;
+						bool partOfMill = false;
 
 						for (int y = 0; y < 3; y++) {
-							//if the piece pos inputed has the same type as the current searching index
+							// if the piece pos inputed has the same type as the current searching index
 							if (board.getPiece(pos).type == board.data[c][x][y][z].type) {
 								count++;
 							}
+
+							// and is a part of the mill
+							if (pos == glm::vec4(x, y, z, c)) {
+								partOfMill = true;
+							}
 						}
 
-						if (count >= 3) {
+						if (count >= 3 && partOfMill) {
 							millsCounted++;
 						}
 					}
@@ -651,15 +692,21 @@ public:
 					for (int y = 0; y < 3; y += 2) {
 						// goal of getting this to equal 3
 						int count = 0;
+						bool partOfMill = false;
 
 						for (int z = 0; z < 3; z++) {
 							//if the piece pos inputed has the same type as the current searching index
 							if (board.getPiece(pos).type == board.data[c][x][y][z].type) {
 								count++;
 							}
+
+							// and is a part of the mill
+							if (pos == glm::vec4(x, y, z, c)) {
+								partOfMill = true;
+							}
 						}
 
-						if (count >= 3) {
+						if (count >= 3 && partOfMill) {
 							millsCounted++;
 						}
 					}
@@ -685,15 +732,21 @@ public:
 							// yay, everything in here is a center edge position
 
 							int count = 0;
+							bool partOfMill = false;
 
 							for (int c = 0; c < 3; c++) {
-								//if the piece pos inputed has the same type as the current searching index
+								// if the piece pos inputed has the same type as the current searching index
 								if (board.getPiece(pos).type == board.data[c][x][y][z].type) {
 									count++;
 								}
+
+								// and is a part of the mill
+								if (pos == glm::vec4(x, y, z, c)) {
+									partOfMill = true;
+								}
 							}
 
-							if (count >= 3) {
+							if (count >= 3 && partOfMill) {
 								millsCounted++;
 							}
 						}
@@ -702,7 +755,39 @@ public:
 			}
 		}
 
+
+		if (millsCounted > 0) {
+			// std::cout << "mills found: " << millsCounted << std::endl;
+		}
+
 		return millsCounted;
+	}
+
+	// returns the number of pieces that are not part of mills with a corresponding color
+	int getNonMillPieces(Piece::Color color) {
+		std::vector<glm::vec4> pieces = std::vector<glm::vec4>();
+
+		// find pieces with the same color
+		for (int c = 0; c < 3; c++) {
+			for (int x = 0; x < 3; x++) {
+				for (int y = 0; y < 3; y++) {
+					for (int z = 0; z < 3; z++) {
+						if (board.data[c][x][y][z].type == color) {
+							pieces.push_back(glm::vec4(x, y, z, c));
+						}
+					}
+				}
+			}
+		}
+
+		int piecesInMill = 0;
+
+		for (int i = 0; i < pieces.size(); i++) {
+			piecesInMill += checkMill(pieces[i]);
+		}
+
+		// std::cout << "non-mill pieces found: " << pieces.size() - piecesInMill << std::endl;
+		return pieces.size() - piecesInMill;
 	}
 
 	void switchTurn() {
@@ -728,7 +813,7 @@ public:
 
 		// reset turn vars
 		selectedPieceBuffer = glm::vec4(-1);
-		mills = 0;
+		//mills = 0;
 	}
 
 	void setScores(int score1, int score2) {
