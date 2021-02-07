@@ -73,7 +73,7 @@ public:
 			std::cout << "Failed to create connection" << std::endl;
 		}
 
-		std::cout << "Server commands include: '/quit' and '/clear'" << std::endl;
+		std::cout << "Server commands include: '/quit' and '/clear'" << std::endl << std::endl;
 
 		// main loop
 		while (!g_bQuit && game.run() == 1)
@@ -98,6 +98,9 @@ public:
 		// set scores
 		data.score1 = game.gameManager.score1;
 		data.score2 = game.gameManager.score2;
+
+		data.piecesLeft1 = game.gameManager.piecesLeft1;
+		data.piecesLeft2 = game.gameManager.piecesLeft2;
 
 		// send turn after the turn has been switched already.
 		data.currentTurn = game.gameManager.currentTurn;
@@ -181,6 +184,7 @@ private:
 
 						// set current scores
 						game.gameManager.setScores((int)data->score1, (int)data->score2);
+						game.gameManager.setPiecesLeft((int)data->piecesLeft1, (int)data->piecesLeft2);
 
 						// set the current turn
 						game.gameManager.setTurnToInt(data->currentTurn);
@@ -357,6 +361,9 @@ void clearBoardCallback() {
 	// set scores
 	data.score1 = client->game.gameManager.score1;
 	data.score2 = client->game.gameManager.score2;
+
+	data.piecesLeft1 = client->game.gameManager.piecesLeft1;
+	data.piecesLeft2 = client->game.gameManager.piecesLeft2;
 
 	// set turn to neutral so the original turns remain.
 	data.currentTurn = 0;

@@ -129,6 +129,9 @@ private:
 		data.score1 = game.score1;
 		data.score2 = game.score2;
 
+		data.piecesLeft1 = game.piecesLeft1;
+		data.piecesLeft2 = game.piecesLeft2;
+
 		// send turn after the turn has been switched already.
 		data.currentTurn = game.currentTurn;
 
@@ -200,6 +203,7 @@ private:
 					game.board.setBoardToData(data);
 
 					game.setScores((int)data->score1, (int)data->score2);
+					game.setPiecesLeft((int)data->piecesLeft1, (int)data->piecesLeft2);
 
 					if (data->currentTurn != 0) {
 						game.setTurnToInt(data->currentTurn);

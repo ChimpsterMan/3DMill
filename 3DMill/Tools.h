@@ -58,6 +58,10 @@ struct DataPacket
 	// -1 is EMPTY, 0 is None, 1 is red, blue is 2
 	int score1 = 0;
 	int score2 = 0;
+
+	int piecesLeft1 = 23;
+	int piecesLeft2 = 23;
+
 	int currentTurn;
 	int board[3][3][3][3];
 };

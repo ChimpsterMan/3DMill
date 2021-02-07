@@ -101,8 +101,8 @@ public:
 		score1 = 0;
 		score2 = 0;
 
-		piecesLeft1 = 10;
-		piecesLeft2 = 10;
+		piecesLeft1 = 23;
+		piecesLeft2 = 23;
 
 		selectedPiece = glm::vec4(-1);
 		selectedPieceBuffer = glm::vec4(-1);
@@ -123,8 +123,8 @@ public:
 		score1 = 0;
 		score2 = 0;
 
-		piecesLeft1 = 10;
-		piecesLeft2 = 10;
+		piecesLeft1 = 23;
+		piecesLeft2 = 23;
 
 		winPause = false;
 
@@ -174,20 +174,20 @@ public:
 
 				cout << endl;
 				if (win == Piece::Color::RED) {
-					cout << "RED WINS!" << endl;
+					// cout << "RED WINS!" << endl;
 					text = "Red Wins!";
 
 					score1 += 1;
 				}
 				else if (win == Piece::Color::BLUE) {
-					cout << "BLUE WINS!" << endl;
+					// cout << "BLUE WINS!" << endl;
 					text = "Blue Wins!";
 
 					score2 += 1;
 				}
 				// nobody wins
 				else if (board.fullBoard()) {
-					cout << "NOBODY WINS" << endl;
+					// cout << "NOBODY WINS" << endl;
 					text = "Nobody Wins!";
 				}
 
@@ -343,7 +343,8 @@ public:
 					// you can only see outline if it is a possible place to move
 
 					// if the person is trying to move a piece and it is in an invalid place then don't outline
-					if (!(!winPause && (currentTurn == placeOnlyOnTurn || placeOnlyOnTurn == 0) && selectedPieceBuffer != glm::vec4(-1) && !validMoveLocation(selectedPieceBuffer, selectedPiece))) {
+					if (!(!winPause && (currentTurn == placeOnlyOnTurn || placeOnlyOnTurn == 0) && selectedPieceBuffer != glm::vec4(-1) && 
+						(!(validMoveLocation(selectedPieceBuffer, selectedPiece) || getPiecesOnBoard(currentTurn) + *getPiecesLeftFromTurn(currentTurn) <= 3)))) {
 						outlinePiece.asset->setPosition(board.getPiecePosFromCoord((int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w));
 						outlinePiece.asset->visible = true;
 					}
@@ -356,7 +357,7 @@ public:
 						if (selectedPieceBuffer != glm::vec4(-1)) {
 							// check if the end location is in a valid move position
 							// override this valid move location if the player only has 3 pieces left on the field and their reserves.
-							if (validMoveLocation(selectedPieceBuffer, selectedPiece) || getPiecesOnBoard(board.getPiece(selectedPiece).type) + *getPiecesLeftFromTurn(currentTurn) <= 3) {
+							if (validMoveLocation(selectedPieceBuffer, selectedPiece) || getPiecesOnBoard(currentTurn) + *getPiecesLeftFromTurn(currentTurn) <= 3) {
 								board.addPiece(currentTurn, (int)selectedPiece.x, (int)selectedPiece.y, (int)selectedPiece.z, (int)selectedPiece.w);
 								placedPiece = true;
 
@@ -409,7 +410,6 @@ public:
 
 							// if there are simply no more pieces to remove that are not in mills
 							else if (getNonMillPieces(Piece::Color(currentTurn % 2 + 1)) == 0) {
-								std::cout << "here" << std::endl;
 								mills = 0;
 								switchTurn();
 							}
@@ -517,7 +517,15 @@ public:
 				// remove the banner
 				graphics->textManager.removeText("win_msg");
 
+				// reset
 				board.clearBoard();
+
+				piecesLeft1 = 23;
+				piecesLeft2 = 23;
+
+				selectedPiece = glm::vec4(-1);
+				selectedPieceBuffer = glm::vec4(-1);
+				mills = 0;
 
 				if (clearBoardCallback != nullptr) {
 					clearBoardCallback();
@@ -583,32 +591,6 @@ public:
 		return false;
 	}
 
-	// check if somebody won
-	Piece::Color checkWin() {
-		// Check if Blue Wins
-		if (piecesLeft1 == 0) {
-			// traverse the entire board searching for a red piece
-			int num = getPiecesOnBoard(Piece::Color::RED);
-
-			if (num <= 0) {
-				return Piece::Color::BLUE;
-			}
-		}
-
-		// Check if Red Wins
-		if (piecesLeft2 == 0) {
-			// traverse the entire board searching for a blue piece
-			int num = getPiecesOnBoard(Piece::Color::BLUE);
-
-			if (num <= 0) {
-				return Piece::Color::RED;
-			}
-		}
-
-		// default
-		return Piece::Color::NONE;
-	}
-
 	// get the current number of pieces with a certain color on the board
 	int getPiecesOnBoard(Piece::Color color) {
 		//traverse the entire board searching for a red piece
@@ -628,6 +610,22 @@ public:
 		}
 
 		return count;
+	}
+
+	// check if somebody won
+	Piece::Color checkWin() {
+		// Check if Blue Wins
+		if (piecesLeft1 + getPiecesOnBoard(Piece::Color::RED) < 3) {
+			return Piece::Color::BLUE;
+		}
+	
+		// Check if Red Wins
+		if (piecesLeft2 + getPiecesOnBoard(Piece::Color::BLUE) < 3) {
+			return Piece::Color::RED;
+		}
+
+		// default
+		return Piece::Color::NONE;
 	}
 
 	// Return the number of mills a piece is connected to. Enter a piece pos (x,y,z,c) and the function will return if the piece selected is part of a mill (3 pieces of the same color in a row)
@@ -819,6 +817,16 @@ public:
 	void setScores(int score1, int score2) {
 		this->score1 = score1;
 		this->score2 = score2;
+	}
+
+	void setPiecesLeft(int piecesLeft1, int piecesLeft2) {
+		this->piecesLeft1 = piecesLeft1;
+		this->piecesLeft2 = piecesLeft2;
+
+		if (graphics != nullptr) {
+			graphics->setText("piecesLeft1", "Reserve Pieces: " + to_string(this->piecesLeft1));
+			graphics->setText("piecesLeft2", "Reserve Pieces: " + to_string(this->piecesLeft2));
+		}
 	}
 
 	int* getPiecesLeftFromTurn(Piece::Color color) {

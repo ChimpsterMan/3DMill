@@ -476,7 +476,7 @@ private:
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-	std::cout << "Failed to create GLFW window" << std::endl;
+	// std::cout << "Failed to create GLFW window" << std::endl;
 	// make sure the viewport matches the new window dimensions; note that width and 
 	// height will be significantly larger than specified on some displays
 

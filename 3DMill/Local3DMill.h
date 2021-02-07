@@ -51,7 +51,7 @@ inline const std::vector<const char*> cloudySkybox
 	"resources/textures/CloudySkyBox/cubemap_4.jpg",
 	"resources/textures/CloudySkyBox/cubemap_5.jpg",
 	"resources/textures/CloudySkyBox/cubemap_0.jpg",
-	"resources/textures/CloudySkyBox/cubemap_2.jpg",
+	"resources/textures/CloudySkyBox/cubemap_2.jpg"
 };
 
 // unused second option for skybox
@@ -62,7 +62,7 @@ inline const std::vector<const char*> galexySkybox
 	"resources/textures/SpaceSkyBox/upImage.png",
 	"resources/textures/SpaceSkyBox/downImage.png",
 	"resources/textures/SpaceSkyBox/frontImage.png",
-	"resources/textures/SpaceSkyBox/backImage.png",
+	"resources/textures/SpaceSkyBox/backImage.png"
 };
 
 // prototypes
@@ -119,7 +119,7 @@ public:
 		}
 
 		// make the graphics engine (Jordan: Do not focus too much on this, it is very complicated and not relevant to the problem.
-		graphics = GraphicsEngine("3D Four Connect", &SCR_WIDTH, &SCR_HEIGHT, 1, true);
+		graphics = GraphicsEngine("3D Mill", &SCR_WIDTH, &SCR_HEIGHT, 1, true);
 
 		// add all the models that are going to be used immediatley
 		graphics.addModel(BoardModelPath);
@@ -163,6 +163,19 @@ public:
 		fpsCounter = 0;
 
 		gameState = 1;
+
+		// display instructions
+		std::cout <<
+			"Instructions: The goal of 3D Mill is to remove all of your opponents pieces that are on the board and in reserve. " << std::endl <<
+			"You are able to remove one of your opponents pieces from the board when you get a mill which is three of your pieces " << std::endl <<
+			"in a row along the black lines of the board. If you get multiple mills in one turn, you can remove the corresponding " << std::endl <<
+			"number of your opponents pieces from the board. However, you may not remove any of your opponents pieces that are " << std::endl <<
+			"currently in a mill. If all of your opponents pieces are in a mill and you get a mill, none of your opponents pieces " << std::endl <<
+			"are removed. On each turn, you must either add a piece to the board from your reserve or move an existing piece. " << std::endl <<
+			"Existing pieces may only be moved one space along any of the adjacent black lines. The exeption to this is when you " << std::endl <<
+			"only have a combined total of three pieces in your reserve and on the board. The game will end when either player " << std::endl <<
+			"has less than three total pieces on the board and in their reserve." << std::endl <<
+			std::endl;
 	}
 
 	int run() {
