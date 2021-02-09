@@ -532,6 +532,10 @@ public:
 				piecesLeft1 = 23;
 				piecesLeft2 = 23;
 
+				// pieces left
+				this->graphics->setText("piecesLeft1", "Reserve Pieces: " + to_string(piecesLeft1));
+				this->graphics->setText("piecesLeft2", "Reserve Pieces: " + to_string(piecesLeft2));
+
 				selectedPiece = glm::vec4(-1);
 				selectedPieceBuffer = glm::vec4(-1);
 				mills = 0;
@@ -790,10 +794,14 @@ public:
 		int piecesInMill = 0;
 
 		for (int i = 0; i < pieces.size(); i++) {
-			piecesInMill += checkMill(pieces[i]);
+			int millCount = checkMill(pieces[i]);
+
+			if (millCount > 0) {
+				piecesInMill += 1;
+			}
 		}
 
-		// std::cout << "non-mill pieces found: " << pieces.size() - piecesInMill << std::endl;
+		// std::cout << "non-mill pieces found: " << pieces.size() << " " << piecesInMill << std::endl;
 		return pieces.size() - piecesInMill;
 	}
 

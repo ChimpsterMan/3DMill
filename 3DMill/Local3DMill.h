@@ -165,7 +165,7 @@ public:
 		gameState = 1;
 
 		// display instructions
-		std::cout <<
+		std::cout << std::endl <<
 			"Instructions: The goal of 3D Mill is to remove all of your opponents pieces that are on the board and in reserve. " << std::endl <<
 			"You are able to remove one of your opponents pieces from the board when you get a mill which is three of your pieces " << std::endl <<
 			"in a row along the black lines of the board. If you get multiple mills in one turn, you can remove the corresponding " << std::endl <<
