@@ -119,7 +119,7 @@ public:
 		}
 
 		// make the graphics engine (Jordan: Do not focus too much on this, it is very complicated and not relevant to the problem.
-		graphics = GraphicsEngine("3D Mill", &SCR_WIDTH, &SCR_HEIGHT, 1, true);
+		graphics = GraphicsEngine("3D Mill", &SCR_WIDTH, &SCR_HEIGHT, 4, true);
 
 		// add all the models that are going to be used immediatley
 		graphics.addModel(BoardModelPath);
